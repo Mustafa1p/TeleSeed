@@ -1,11 +1,10 @@
-
 local function pre_process(msg)
   local data = load_data(_config.moderation.data)
   -- SERVICE MESSAGE
   if msg.action and msg.action.type then
     local action = msg.action.type
     -- Check if banned user joins chat by link
-    if action == 'chat_add_user_link' then
+    if action == 'chat_add_user_link' or action == 'channel_invite_user_link' then
       local user_id = msg.from.id
       print('Checking invited user '..user_id)
       local banned = is_banned(user_id, msg.to.id)
@@ -18,7 +17,7 @@ local function pre_process(msg)
       end
     end
     -- Check if banned user joins chat
-    if action == 'chat_add_user' then
+    if action == 'chat_add_user' or action == 'channel_invite_user' then
       local user_id = msg.action.user.id
       print('Checking invited user '..user_id)
       local banned = is_banned(user_id, msg.to.id)
@@ -66,10 +65,6 @@ local function pre_process(msg)
   if msg.to.type == 'chat' or msg.to.type == 'channel' then
     local group = msg.to.id
     local texttext = 'groups'
-    --if not data[tostring(texttext)][tostring(msg.to.id)] and not is_realm(msg) then -- Check if this group is one of my groups or not
-    --chat_del_user('chat#id'..msg.to.id,'user#id'..our_id,ok_cb,false)
-    --return
-    --end
     local user_id = msg.from.id
     local chat_id = msg.to.id
     local banned = is_banned(user_id, chat_id)
@@ -149,13 +144,14 @@ local support_id = msg.from.id
       return "Group ID for " ..string.gsub(msg.to.print_name, "_", " ").. ":\n\n"..msg.to.id
     end
   end
-  if matches[1]:lower() == 'kickme' and msg.to.type == "chat" then-- /kickme
+  if matches[1]:lower() == 'kickme' and msg.to.type == "chat" or msg.to.type == "channel" then-- /kickme
   local receiver = get_receiver(msg)
-    if msg.to.type == 'chat' then
+    if msg.to.type == 'chat' or msg.to.type == 'channel' then
       local print_name = user_print_name(msg.from):gsub("‮", "")
 	  local name = print_name:gsub("_", "")
       savelog(msg.to.id, name.." ["..msg.from.id.."] left using kickme ")-- Save to logs
       chat_del_user("chat#id"..msg.to.id, "user#id"..msg.from.id, ok_cb, false)
+      channel_kick("channel#id"..msg.to.id, "user#id"..msg.from.id, ok_cb, false)    
     end
   end
 
@@ -275,20 +271,20 @@ end
 		return
 	end
 
-  if matches[1]:lower() == 'banall' and is_admin1(msg) then -- Global ban
-    if type(msg.reply_id) ~="nil" and is_admin1(msg) then
-      banall = get_message(msg.reply_id,banall_by_reply, false)
+  if matches[1]:lower() == 'banall' then -- Global ban
+    if type(msg.reply_id) ~="nil" and is_admin(msg) then
+      return get_message(msg.reply_id,banall_by_reply, false)
     end
     local user_id = matches[2]
     local chat_id = msg.to.id
       local targetuser = matches[2]
       if string.match(targetuser, '^%d+$') then
         if tonumber(matches[2]) == tonumber(our_id) then
-         	return false
+         	return false 
         end
         	banall_user(targetuser)
        		return 'User ['..user_id..' ] globally banned'
-     else
+      else
 	local cbres_extra = {
 		chat_id = msg.to.id,
 		get_cmd = 'banall',
@@ -331,9 +327,9 @@ return {
     "^[#!/]([Bb]anlist) (.*)$",
     "^[#!/]([Bb]anlist)$",
     "^[#!/]([Gg]banlist)$",
-	"^[#!/]([Kk]ickme)",
+    "^[#!/]([Kk]ickme)",
     "^[#!/]([Kk]ick)$",
-	"^[#!/]([Bb]an)$",
+    "^[#!/]([Bb]an)$",
     "^[#!/]([Bb]an) (.*)$",
     "^[#!/]([Uu]nban) (.*)$",
     "^[#!/]([Uu]nbanall) (.*)$",
